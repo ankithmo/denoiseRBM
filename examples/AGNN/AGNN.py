@@ -58,7 +58,7 @@ def test(model, data, emb=None, layer=0):
 
 
 def main(dataset, checkpoint):
-    path = osp.join(osp.dirname(osp.realpath(__file__)), "data", args.dataset)
+    path = osp.join(osp.dirname(osp.realpath(__file__)), "data", dataset)
     dataset = Planetoid(path, args.dataset, transform=T.NormalizeFeatures())
     data = dataset[0]
 
@@ -83,7 +83,7 @@ def main(dataset, checkpoint):
     }
     chkpt_dir = osp.join(osp.dirname(osp.realpath(__file__)), "checkpoints")
     if not osp.exists(chkpt_dir): mkdir(chkpt_dir)
-    path = osp.join(chkpt_dir, args.checkpoint)
+    path = osp.join(chkpt_dir, checkpoint)
     torch.save(checkpoint, path)
 
 

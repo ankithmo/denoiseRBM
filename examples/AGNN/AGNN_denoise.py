@@ -25,27 +25,27 @@ def main(dataset, GNN_checkpoint, layer, num_epochs, num_hidden, lr, K,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Data
-    path = osp.join(osp.dirname(osp.realpath(__file__)), "data", args.dataset)
-    dataset = Planetoid(path, args.dataset, transform=T.NormalizeFeatures())
+    path = osp.join(osp.dirname(osp.realpath(__file__)), "data", dataset)
+    dataset = Planetoid(path, dataset, transform=T.NormalizeFeatures())
     data = dataset[0].to(device)
 
     # Model
     model = AGNN.Net(dataset.num_features, 16, dataset.num_classes).to(device)
 
     # Embeddings
-    chkpt = torch.load(args.GNN_checkpoint)
+    chkpt = torch.load(GNN_checkpoint)
     model.load_state_dict(chkpt["state_dict"])
-    z = chkpt["embeddings"][args.layer-1].to(device)
+    z = chkpt["embeddings"][layer-1].to(device)
 
     # Verify that the model and the checkpoints work
-    train_acc, val_acc, test_acc = AGNN.test(model, data, z, args.layer)
+    train_acc, val_acc, test_acc = AGNN.test(model, data, z, layer)
     print("\nVerify loading:")
     print(f"Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}")
 
     # Train RBM on these embeddings
-    z_RBM = RBM.RBM(z.size(1), args.num_hidden)
+    z_RBM = RBM.RBM(z.size(1), num_hidden)
     z_RBM = z_RBM.to(device)
-    l2 = z_RBM.train_RBM(args.num_epochs, z[data.train_mask], args.lr, args.K, args.RBM_checkpoint)
+    l2 = z_RBM.train_RBM(num_epochs, z[data.train_mask], lr, K, RBM_checkpoint)
 
     # Check the reconstructions error
     plt.plot(l2)
@@ -56,7 +56,7 @@ def main(dataset, GNN_checkpoint, layer, num_epochs, num_hidden, lr, K,
     # How good is our trained RBM?
     h, _ = z_RBM.Ph_v(z)
     z_tilde = z_RBM.Pv_h(h)
-    train_acc, val_acc, test_acc = AGNN.test(model, data, z_tilde, args.layer)
+    train_acc, val_acc, test_acc = AGNN.test(model, data, z_tilde, layer)
     print("\nEvaluate when entire embeddings tensor is reconstructed:")
     print(f"Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}")
 
@@ -66,18 +66,18 @@ def main(dataset, GNN_checkpoint, layer, num_epochs, num_hidden, lr, K,
     h_test, _ = z_RBM.Ph_v(z[data.test_mask])
     z_test_tilde = z_RBM.Pv_h(h_test)
     z_tilde_a = assemble(z, data, z_val_tilde, z_test_tilde)
-    train_acc, val_acc, test_acc = AGNN.test(model, data, z_tilde_a, args.layer)
+    train_acc, val_acc, test_acc = AGNN.test(model, data, z_tilde_a, layer)
     print("\nEvaluate when valid and test embedding tensors are reconstructed:")
     print(f"Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}")
 
     # Verify that denoise is working
-    ans = denoise(model, data, AGNN.test, args.layer, z_RBM, device)
+    ans = denoise(model, data, AGNN.test, layer, z_RBM, device)
     print("\nDenoise results when original node feature matrix and adjacency matrix are passed:")
     print(ans)
 
     # Denoise analysis
     print("\nPerform denoise analysis:")
-    results = analysis(model, data, AGNN.test, args.layer, z_RBM, device, args.results)
+    results = analysis(model, data, AGNN.test, layer, z_RBM, device, results)
     print(results)
 
 if __name__ == "__main__":
