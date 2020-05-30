@@ -111,6 +111,6 @@ def analysis(model, data, test, layer, z_RBM, device, save_path):
     df = pd.DataFrame(results, columns=col_names)
     df = df.astype(col_dtypes)
     df.to_pickle(save_path)
-    print(f"{save_path} created!")
+    print(f"\n{save_path} created!")
 
     return df

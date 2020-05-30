@@ -16,11 +16,11 @@ sys.path.append(osp.dirname(osp.dirname(osp.realpath(__file__))))
 sys.path.append(osp.dirname(osp.dirname(osp.dirname(osp.realpath(__file__)))))
 
 import AGNN
-from dRBM import RBM
-from dRBM.utils import assemble
-from dRBM.denoise import denoise, analysis
+from dRBM.dRBM import RBM
+from dRBM.dRBM.utils import assemble
+from dRBM.dRBM.denoise import denoise, analysis
 
-def main(dataset, GNN_checkpoint, layer, num_epochs, num_hidden, lr, K, 
+def denoise_GNN(dataset, GNN_checkpoint, layer, num_epochs, num_hidden, lr, K, 
          RBM_checkpoint, results):
     # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -93,6 +93,6 @@ if __name__ == "__main__":
     parser.add_argument("--RBM_checkpoint", type=str, help="Absolute path to the checkpoint for the RBM")
     parser.add_argument("--results", type=str, help="Absolute path to the location where the dataframe should be saved")
     args = parser.parse_args()
-    main(dataset=args.dataset, GNN_checkpoint=args.GNN_checkpoint, layer=args.layer, 
+    denoise_GNN(dataset=args.dataset, GNN_checkpoint=args.GNN_checkpoint, layer=args.layer, 
          num_epochs=args.num_epochs, num_hidden=args.num_hidden, lr=args.lr, 
          K=args.K, RBM_checkpoint=args.RBM_checkpoint, results=args.results)

@@ -57,7 +57,7 @@ def test(model, data, emb=None, layer=0):
     return accs
 
 
-def main(dataset, checkpoint):
+def GNN(dataset, checkpoint):
     path = osp.join(osp.dirname(osp.realpath(__file__)), "data", dataset)
     dataset = Planetoid(path, dataset, transform=T.NormalizeFeatures())
     data = dataset[0]
@@ -89,4 +89,4 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", help="Dataset")
     parser.add_argument("--checkpoint", help="Checkpoint path")
     args = parser.parse_args()
-    main(dataset=args.dataset, checkpoint=args.checkpoint)
+    GNN(dataset=args.dataset, checkpoint=args.checkpoint)
