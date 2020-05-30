@@ -77,14 +77,11 @@ def main(dataset, checkpoint):
 
     z, _ = model(data)
 
-    checkpoint = {
+    checkpoint_dict = {
         "state_dict": model.state_dict(),
         "embeddings": z
     }
-    chkpt_dir = osp.join(osp.dirname(osp.realpath(__file__)), "checkpoints")
-    if not osp.exists(chkpt_dir): mkdir(chkpt_dir)
-    path = osp.join(chkpt_dir, checkpoint)
-    torch.save(checkpoint, path)
+    torch.save(checkpoint_dict, checkpoint)
 
 
 if __name__ == "__main__":
