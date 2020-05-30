@@ -1,6 +1,11 @@
 
 import torch
 import numpy as np
+
+import os.path as osp
+import sys
+sys.path.append(osp.dirname(osp.realpath(__file__)))
+
 import utils as utils
 
 ###############################################################################

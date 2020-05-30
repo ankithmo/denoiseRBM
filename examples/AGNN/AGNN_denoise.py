@@ -14,10 +14,11 @@ import sys
 sys.path.append(osp.dirname(osp.realpath(__file__)))
 sys.path.append(osp.dirname(osp.dirname(osp.realpath(__file__))))
 sys.path.append(osp.dirname(osp.dirname(osp.dirname(osp.realpath(__file__)))))
+
 import AGNN
-from DenoiseRBM import RBM
-from DenoiseRBM.utils import assemble
-from DenoiseRBM.denoise import denoise, analysis
+from dRBM import RBM
+from dRBM.utils import assemble
+from dRBM.denoise import denoise, analysis
 
 def main(dataset, GNN_checkpoint, layer, num_epochs, num_hidden, lr, K, 
          RBM_checkpoint, results):
