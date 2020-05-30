@@ -48,7 +48,8 @@ def denoise(model, data, test, layer, z_RBM, device):
 def analysis(model, data, test, layer, z_RBM, device, save_path):
     results = []
     cols = ['train_mask', 'val_mask', 'test_mask', 'y']
-    col_names = ["A%", "X%", "Type", "Train accuracy", "Validation accuracy", "Test accuracy"]
+    col_names = ["distort A%", "distort X%", "Type", "Train accuracy", "Validation accuracy", 
+                 "Test accuracy"]
     col_dtypes = {"A%": float, "X%": float, "Type": str, "Train accuracy": float, 
                   "Validation accuracy": float, "Test accuracy": float}
 

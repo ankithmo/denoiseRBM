@@ -17,7 +17,7 @@ def get_dubious_x(mat, percent, device, noisy=True):
         percent: What percentage of the node feature matrix must be made noisy or incomplete
     """
     rand = torch.rand_like(mat)
-    ans = mat + rand if noisy else torch.zeros_like(mat)
+    ans = rand if noisy else torch.zeros_like(mat)
     return torch.where(rand > percent, mat, ans).to(device)
 
 
