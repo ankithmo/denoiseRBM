@@ -26,17 +26,17 @@ def distort_percent_x(data, p, device):
         p: What percentage of the node feature matrix must be made dubious
     """
     percent = p/100
-    x = cutils.get_node_feature_matrix(data)
+    x = utils.get_node_feature_matrix(data)
 
     # Noisy data
     val_x_noisy = get_dubious_x(x["val"], percent, device, noisy=True)
     test_x_noisy = get_dubious_x(x["test"], percent, device, noisy=True)
-    x_noisy = cutils.assemble(data.x, data, val_x_noisy, test_x_noisy)
+    x_noisy = utils.assemble(data.x, data, val_x_noisy, test_x_noisy)
 
     # Incomplete data
     val_x_incomplete = get_dubious_x(x["val"], percent, device, noisy=False)
     test_x_incomplete = get_dubious_x(x["test"], percent, device, noisy=False)
-    x_incomplete = cutils.assemble(data.x, data, val_x_incomplete, test_x_incomplete)
+    x_incomplete = utils.assemble(data.x, data, val_x_incomplete, test_x_incomplete)
     
     return x_noisy, x_incomplete
 
@@ -73,7 +73,7 @@ def distort_percent_A(data, p, device):
         p: What percentage of the adjacency matrix must be made dubious
     """
     percent = p/100
-    nbrs = cutils.get_adj_lists(data)
+    nbrs = utils.get_adj_lists(data)
     others = get_dubious_A(nbrs["other"], 0, device)
 
     # Noisy data
