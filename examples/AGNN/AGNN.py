@@ -59,7 +59,7 @@ def test(model, data, emb=None, layer=0):
 
 def main(dataset, checkpoint):
     path = osp.join(osp.dirname(osp.realpath(__file__)), "data", dataset)
-    dataset = Planetoid(path, args.dataset, transform=T.NormalizeFeatures())
+    dataset = Planetoid(path, dataset, transform=T.NormalizeFeatures())
     data = dataset[0]
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
