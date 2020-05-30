@@ -50,7 +50,7 @@ def analysis(model, data, test, layer, z_RBM, device, save_path):
     cols = ['train_mask', 'val_mask', 'test_mask', 'y']
     col_names = ["distort A%", "distort X%", "Type", "Train accuracy", "Validation accuracy", 
                  "Test accuracy"]
-    col_dtypes = {"A%": float, "X%": float, "Type": str, "Train accuracy": float, 
+    col_dtypes = {"distort A%": float, "distort X%": float, "Type": str, "Train accuracy": float, 
                   "Validation accuracy": float, "Test accuracy": float}
 
     pbar = tqdm(total=484)
