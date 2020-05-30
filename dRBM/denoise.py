@@ -8,10 +8,11 @@ import pandas as pd
 from tqdm import tqdm
 import os.path as osp
 import sys
-sys.path.append(osp.dirname(osp.realpath(__file__)))
+dRBM_folder = osp.abspath(osp.dirname(__file__))
+sys.path.insert(0, dRBM_folder)
 
-from utils import assemble
-from dubious import distort_percent_x, distort_percent_A
+from dRBM.utils import assemble
+from dRBM.dubious import distort_percent_x, distort_percent_A
 
 def denoise(model, data, test, layer, z_RBM, device):
     """
