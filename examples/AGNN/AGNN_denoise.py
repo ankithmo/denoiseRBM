@@ -11,14 +11,17 @@ from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
 
 import sys
-sys.path.append(osp.dirname(osp.realpath(__file__)))
-sys.path.append(osp.dirname(osp.dirname(osp.realpath(__file__))))
-sys.path.append(osp.dirname(osp.dirname(osp.dirname(osp.realpath(__file__)))))
+AGNN_folder = osp.abspath(osp.dirname(__file__))
+examples_folder = osp.abspath(osp.dirname(AGNN_folder))
+dRBM_folder = osp.abspath(osp.dirname(examples_folder))
+sys.path.insert(0, dRBM_folder)
+sys.path.insert(1, examples_folder)
+sys.path.insert(2, AGNN_folder)
 
-import AGNN
-from dRBM.dRBM import RBM
-from dRBM.dRBM.utils import assemble
-from dRBM.dRBM.denoise import denoise, analysis
+from dRBM import RBM
+from dRBM.utils import assemble
+from dRBM.denoise import denoise, analysis
+from examples.AGNN import AGNN
 
 def denoise_GNN(dataset, GNN_checkpoint, layer, num_epochs, num_hidden, lr, K, 
          RBM_checkpoint, results):

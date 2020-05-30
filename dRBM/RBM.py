@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.distributions as tdist
 
 import os.path as osp
+from tqdm import tqdm
 
 class RBM(nn.Module):
 
@@ -117,9 +118,13 @@ class RBM(nn.Module):
     def train_RBM(self, num_epochs, data, eta, K, chkpt):
         self.train()
         l2 = []
+        print("\n Training RBM:")
+        pbar = tqdm(total=num_epochs)
         for epoch in range(num_epochs):
             l2.append(self.CD(data, epoch, eta, K))
+            pbar.update(1)
         torch.save(self.state_dict(), chkpt)
+        pbar.close()
         print(f"\n{chkpt} created!")
 
         return l2
