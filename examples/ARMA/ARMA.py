@@ -7,31 +7,35 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
-from torch_geometric.nn import AGNNConv
+from torch_geometric.nn import ARMAConv
 
 
 class Net(torch.nn.Module):
-    def __init__(self, num_in, num_hid, num_out):
+    def __init__(self, num_in, num_hid, num_out, num_stacks, num_layers, shared_weights, dropout, act):
         super(Net, self).__init__()
-        self.lin1 = torch.nn.Linear(num_in, num_hid)
-        self.prop1 = AGNNConv(requires_grad=False)
-        self.prop2 = AGNNConv(requires_grad=True)
-        self.lin2 = torch.nn.Linear(num_hid, num_out)
+
+        self.conv1 = ARMAConv(num_in, num_hid, num_stacks=num_stacks[0],
+                              num_layers=num_layers[0], shared_weights=shared_weights[0], 
+                              dropout=dropout[0])
+
+        self.conv2 = ARMAConv(num_hid, num_out, num_stacks=num_stacks[1],
+                              num_layers=num_layers[1], shared_weights=shared_weights[1], 
+                              dropout=dropout[1],
+                              act=act)
 
     def forward(self, data, emb=None, layer=0):
         z = []
 
         x = F.dropout(data.x, training=self.training)
-        x = F.relu(self.lin1(x))
-
-        x = emb if layer == 1 else self.prop1(x, data.edge_index)
+        
+        x = emb if layer == 1 else self.conv1(x, data.edge_index)
         z.append(None if layer == 1 else x.detach())
 
-        x = emb if layer == 2 else self.prop2(x, data.edge_index)
-        z.append(None if layer == 2 else x.detach())
-
+        x = F.relu(x)
         x = F.dropout(x, training=self.training)
-        x = self.lin2(x)
+
+        x = emb if layer == 2 else self.conv2(x, data.edge_index)
+        z.append(None if layer == 2 else x.detach())
 
         return z, F.log_softmax(x, dim=1)
 
@@ -42,7 +46,7 @@ def train(model, optimizer, data):
     _, out = model(data)
     out = out[data.train_mask]
     F.nll_loss(out, data.y[data.train_mask]).backward()
-    optimizer.step()
+    optimizer.step()    
 
 
 def test(model, data, emb=None, layer=0):
@@ -62,11 +66,11 @@ def GNN(dataset, checkpoint):
     data = dataset[0]
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model, data = Net(dataset.num_features, 16, dataset.num_classes).to(device), data.to(device)
+    model, data = Net(num_in=dataset.num_features, num_hid=16, num_out=dataset.num_classes, num_stacks=[3,3], num_layers=[2,2], shared_weights=[True,True], dropout=[0.25,0.25], act=None).to(device), data.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
-    
+
     best_val_acc = test_acc = 0
-    for epoch in range(1, 201):
+    for epoch in range(1, 401):
         train(model, optimizer, data)
         train_acc, val_acc, tmp_test_acc = test(model, data)
         if val_acc > best_val_acc:
