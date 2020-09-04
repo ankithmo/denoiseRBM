@@ -13,13 +13,13 @@ from version import __version__
 with open(osp.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-setup(name='dRBM',
+setup(name='denoiseRBM',
       version=__version__,
-      description='Denoising dubious node feature matrix and adjacency matrices using RBMs and GNNs',
-      url='https://github.com/ankithmo/ColdRBM',
+      description='Alleviating the noisy data problem using restricted Boltzmann machines',
+      url='https://github.com/ankithmo/denoiseRBM',
       author='Ankith Mohan',
       author_email='ankithmo@usc.edu',
-      keywords=['pytorch', 'graph machine learning', 'graph representation learning', 'graph neural networks', 'restricted Boltzmann machines', 'dubious data problem'],
+      keywords=['pytorch', 'graph machine learning', 'graph representation learning', 'graph neural networks', 'restricted Boltzmann machines', 'noisy data problem', 'graph denoising'],
       long_description=long_description,
       long_description_content_type='text/markdown',
       install_requires = [

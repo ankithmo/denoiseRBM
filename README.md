@@ -1,1 +1,1 @@
-# ColdRBM
+# denoiseRBM: Alleviating the Noisy Data Problem using Restricted Boltzmann Machines
