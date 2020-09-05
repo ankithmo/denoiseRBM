@@ -15,14 +15,14 @@ def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
             - idx (list): [train_idx, val_idx, test_idx]
             - prob (float): What fraction of the entries in the corresponding edge index must 
                             be distorted
-            - dataset (str): For "ogbn-arxiv":
+            - dataset (str): If "ogbn-arxiv":
                                 - If source node is in the validation set, 
                                   then its respective destination node is a random node from 
                                   either the training or the validation sets.
                                 - If source node is in the test set,
                                   then its respective destination node is a random node from
                                   the training, validation or the test sets.
-                             For "WikiCS":
+                             Else:
                                 - If source node is in the validation or test sets,
                                   then its respective destination node is a random node.
             - corrupt (bool): Whether to distort edge index through corruption or blanking out
@@ -60,7 +60,7 @@ def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
                 if corrupt:
                     if dataset == "ogbn-arxiv":
                         dest = np.random.choice(train_idx.numpy()) 
-                    elif dataset == "WikiCS": 
+                    else: 
                         dest = np.random.choice(np.delete(np.hstack((train_nodes, 
                                 val_nodes, test_nodes)), edge[1]))
                     new_edge = torch.tensor([edge[0], dest])
@@ -74,7 +74,7 @@ def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
                 if corrupt:
                     if dataset == "ogbn-arxiv":
                         dest = np.random.choice(np.hstack((train_idx.numpy(), val_idx.numpy()))) 
-                    elif dataset == "WikiCS": 
+                    else: 
                         dest = np.random.choice(np.delete(np.hstack((train_nodes, 
                                 val_nodes, test_nodes)), edge[1]))
                     new_edge = torch.tensor([edge[0], dest])
@@ -98,14 +98,14 @@ def distort_a_vt(edge_index, nodes, idx, percent, dataset):
             - nodes (list): [train_nodes, val_nodes, test_nodes]
             - idx (list): [train_idx, val_idx, test_idx]
             - percent (float): What fraction of the edge indices must be distorted
-            - dataset (str): For "ogbn-arxiv":
+            - dataset (str): If "ogbn-arxiv":
                                 - If source node is in the validation set, 
                                   then its respective destination node is a random node from 
                                   either the training or the validation sets.
                                 - If source node is in the test set,
                                   then its respective destination node is a random node from
                                   the training, validation or the test sets.
-                             For "WikiCS":
+                             Else:
                                 - If source node is in the validation or test sets,
                                   then its respective destination node is a random node.
 
@@ -136,14 +136,14 @@ def distort_a(edge_index, nodes, idx, dataset, step=10):
             - edge_index (2, num_edges): Edge index
             - nodes (list): [train_nodes, val_nodes, test_nodes]
             - idx (list): [train_idx, val_idx, test_idx]
-            - dataset (str): For "ogbn-arxiv":
+            - dataset (str): If "ogbn-arxiv":
                                 - If source node is in the validation set, 
                                   then its respective destination node is a random node from 
                                   either the training or the validation sets.
                                 - If source node is in the test set,
                                   then its respective destination node is a random node from
                                   the training, validation or the test sets.
-                             For "WikiCS":
+                             Else:
                                 - If source node is in the validation or test sets,
                                   then its respective destination node is a random node.
             - step (int): Step size for the increments
