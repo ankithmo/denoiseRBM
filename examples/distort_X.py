@@ -1,5 +1,6 @@
 
 import torch
+from tqdm import tqdm
 
 def get_distorted_x(x, prob, corrupt=True):
     """
@@ -19,7 +20,7 @@ def get_distorted_x(x, prob, corrupt=True):
     assert 0 <= prob <= 1, ValueError(f"Expected input in range [0,1], got {prob} instead")
     U = torch.rand_like(x)
     x_n = x + U if corrupt else torch.zeros_like(x)
-    return torch.where(U < prob, x_n, x).to(device)
+    return torch.where(U < prob, x_n, x)
 
 
 def distort_x_vt(x_val, x_test, prob):
@@ -42,25 +43,25 @@ def distort_x_vt(x_val, x_test, prob):
     num_x_val = x_val.size(0) * x_val.size(1)
     num_x_test = x_test.size(0) * x_test.size(1)
 
-    X_val_c = get_distorted_x(x_val, percent, corrupt=True)
-    X_val_c_p = (num_x_val - torch.sum(torch.eq(x_val, X_val_c)))/num_x_val
-    assert X_val_c_p in [percent-0.05, percent+0.05], 
-        ValueError(f"Expected corruption of {percent} in the validation node feature matrix, got {X_val_c_p} instead")
+    X_val_c = get_distorted_x(x_val, prob, corrupt=True)
+    X_val_c_p = ((num_x_val - torch.sum(torch.eq(x_val, X_val_c))).item()/num_x_val)
+    assert prob-0.05 <= X_val_c_p <= prob+0.05, \
+        ValueError(f"Expected corruption of {prob} in the validation node feature matrix, got {X_val_c_p} instead")
 
-    X_test_c = get_distorted_x(x_test, percent, corrupt=True)
-    X_test_c_p = (num_x_test - torch.sum(torch.eq(x_test, X_test_c)))/num_x_test
-    assert X_test_c_p in [percent-0.05, percent+0.05],
-        ValueError(f"Expected corruption of {percent} in the test node feature matrix, got {X_test_c_p} instead")
+    X_test_c = get_distorted_x(x_test, prob, corrupt=True)
+    X_test_c_p = ((num_x_test - torch.sum(torch.eq(x_test, X_test_c))).item()/num_x_test)
+    assert prob-0.05 <= X_test_c_p <= prob+0.05, \
+        ValueError(f"Expected corruption of {prob} in the test node feature matrix, got {X_test_c_p} instead")
 
-    X_val_z = get_distorted_x(x_val, percent, corrupt=False)
-    X_val_z_p = (num_x_val - torch.sum(torch.eq(x_val, X_val_z)))/num_x_val
-    assert X_val_z_p in [percent-0.05, percent+0.05],
-        ValueError(f"Expected blanking out of {percent} in the validation node feature matrix, got {X_val_z_p} instead")
+    X_val_z = get_distorted_x(x_val, prob, corrupt=False)
+    X_val_z_p = ((num_x_val - torch.sum(torch.eq(x_val, X_val_z))).item()/num_x_val)
+    assert prob-0.05 <= X_val_z_p <= prob+0.05, \
+        ValueError(f"Expected blanking out of {prob} in the validation node feature matrix, got {X_val_z_p} instead")
 
-    X_test_z = get_distorted_x(x_test, percent, corrupt=False)
-    X_test_z_p = (num_x_test - torch.sum(torch.eq(x_test, X_test_z)))/num_x_test
-    assert X_test_z_p in [percent-0.05, percent+0.05],
-        ValueError(f"Expected blanking out of {percent} in the test node feature matrix, got {X_test_z_p} instead")
+    X_test_z = get_distorted_x(x_test, prob, corrupt=False)
+    X_test_z_p = ((num_x_test - torch.sum(torch.eq(x_test, X_test_z))).item()/num_x_test)
+    assert prob-0.05 <= X_test_z_p <= prob+0.05, \
+        ValueError(f"Expected blanking out of {prob} in the test node feature matrix, got {X_test_z_p} instead")
 
     return X_val_c, X_test_c, X_val_z, X_test_z
 
@@ -113,8 +114,12 @@ def distort_x(x, idx, step=10):
     val_idx = idx["val_idx"]
     test_idx = idx["test_idx"]
 
-    for i in range(0, 101, step):
-        X_val_c, X_test_c, X_val_z, X_test_z = distort_x_vt(x[val_idx], x[test_idx], i/100.)
+    with tqdm(total=100/step) as pbar:
+        pbar.set_description("Distorting node feature matrix")
+        for i in range(0, 101, step):
+            X_val_c, X_test_c, X_val_z, X_test_z = distort_x_vt(x[val_idx], x[test_idx], i/100.)
+            pbar.update(1)
+    pbar.close()
 
     X_c[i] = torch.empty_like(x)
     X_c[i][train_idx] = x[train_idx]

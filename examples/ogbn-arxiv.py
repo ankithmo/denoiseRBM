@@ -2,11 +2,13 @@
 import argparse
 import os.path as osp
 
+import numpy as np
 import torch
 from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
 
 from distort_X import distort_x
 from distort_A import distort_a
+
 
 def ogbn_arxiv(storage):
     """
@@ -94,12 +96,12 @@ def ogbn_arxiv(storage):
             }
     """
     # Get node feature matrix, labels and edge index
-    dataset = PygNodePropPredDataset(name=dataset_name)
+    dataset = PygNodePropPredDataset(name="ogbn-arxiv")
     split_idx = dataset.get_idx_split()
     data = dataset[0]
     x = data.x
     y_true = data.y
-    edge_index = edge_index
+    edge_index = data.edge_index
 
     # Get indices corresponding to train, validation and test splits
     train_idx = split_idx['train']
@@ -112,7 +114,7 @@ def ogbn_arxiv(storage):
     }
 
     # Get the nodes corresponding to train, validation and test splits
-    nodes = torch.range(data.num_nodes).to(dtype=torch.int)
+    nodes = torch.tensor(range(data.num_nodes))
     train_nodes = nodes[train_idx]
     val_nodes = nodes[val_idx]
     test_nodes = nodes[test_idx]
@@ -124,17 +126,20 @@ def ogbn_arxiv(storage):
 
     # Distort the node feature matrix
     x_distorted = distort_x(x, idx)
+    torch.save(x_distorted, osp.join(storage, "ogbn-arxiv_x_distorted.pt"))
 
     # Distort the edge index
-    A_distorted = distort_a(edge_index, nodes, idx)
+    A_distorted = distort_a(edge_index, nodes, idx, "ogbn-arxiv")
+    torch.save(A_distorted, osp.join(storage, "ogbn-arxiv_A_distorted.pt"))
 
     return x, y_true, edge_index, idx, nodes, x_distorted, A_distorted
+
 
 if __name__ == "__main__":
     # Arguments
     parser = argparse.ArgumentParser(description="ogbn-arxiv")
-    parser.add_argument("--storage", default=osp.join(".", "data"), 
+    parser.add_argument("--storage", default=osp.join(osp.dirname(osp.realpath(__file__)), ".", "data"),
                         help="Absolute path to store ogbn-arxiv dataset")
     args = parser.parse_args()
     
-    WikiCS(args.storage)
+    ogbn_arxiv(args.storage)

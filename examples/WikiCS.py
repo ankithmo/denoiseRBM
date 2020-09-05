@@ -2,13 +2,15 @@
 import argparse
 import os.path as osp
 
+import numpy as np
 import torch
-from torch_geometric.datasets import WikiCS
+from torch_geometric.datasets import WikiCS as pyg_WikiCS
 
 from distort_X import distort_x
 from distort_A import distort_a
 
-def wikiCS(storage, split):
+
+def WikiCS(storage, split):
     """
         WikiCS citation graph (https://arxiv.org/pdf/2007.02901.pdf) denoising
 
@@ -95,11 +97,11 @@ def wikiCS(storage, split):
             }
     """
     # Get node feature matrix, labels and edge index
-    dataset = WikiCS(storage)
+    dataset = pyg_WikiCS(storage)
     data = dataset[0]
     x = data.x
     y_true = data.y
-    edge_index = edge_index
+    edge_index = data.edge_index
 
     # Get indices corresponding to train, validation and test splits
     train_idx = data.train_mask[:, split]
@@ -117,7 +119,7 @@ def wikiCS(storage, split):
     }
 
     # Get the nodes corresponding to train, validation and test splits
-    nodes = torch.range(data.num_nodes).to(dtype=torch.int)
+    nodes = torch.tensor(np.arange(data.num_nodes))
     train_nodes = nodes[train_idx]
     val_nodes = nodes[val_idx]
     test_nodes = nodes[test_idx]
@@ -129,16 +131,19 @@ def wikiCS(storage, split):
 
     # Distort the node feature matrix
     x_distorted = distort_x(x, idx)
+    torch.save(x_distorted, osp.join(storage, "WikiCS_x_distorted.pt"))
 
     # Distort the edge index
-    A_distorted = distort_a(edge_index, nodes, idx)
+    A_distorted = distort_a(edge_index, nodes, idx, "WikiCS")
+    torch.save(A_distorted, osp.join(storage, "WikiCS_A_distorted.pt"))
 
     return x, y_true, edge_index, idx, nodes, x_distorted, A_distorted
+
 
 if __name__ == "__main__":
     # Arguments
     parser = argparse.ArgumentParser(description="WikiCS")
-    parser.add_argument("--storage", default=osp.join(".", "data"), 
+    parser.add_argument("--storage", default=osp.join(osp.dirname(osp.realpath(__file__)), ".", "data"),
                         help="Absolute path to store WikiCS dataset")
     parser.add_argument("--split", default=0, help="Which of the 20 splits to use?")
     args = parser.parse_args()
