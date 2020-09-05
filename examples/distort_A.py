@@ -1,7 +1,9 @@
 
 from tqdm import tqdm
+import numpy as np
+import torch
 
-def get_distorted_A(edge_index, nodes, idx, prob, dataset, corrupt=True):
+def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
     """
         Random distortion of the edge index either through corruption or through blanking out
         - Corruption: Dataset specific corruption of edges
@@ -77,7 +79,7 @@ def get_distorted_A(edge_index, nodes, idx, prob, dataset, corrupt=True):
 
     return val_changed/val_count, test_changed/test_count, torch.stack(distorted_edge_index).t()
 
-def distort_A_vt(edge_index, nodes, idx, percent):
+def distort_a_vt(edge_index, nodes, idx, percent):
     """
         Distorts the edge_index corresponding to the validation and the test sets
 
@@ -90,13 +92,13 @@ def distort_A_vt(edge_index, nodes, idx, percent):
         Returns:
 
     """
-    p_val_c, p_test_c, A_c = get_distorted_A(edge_index, nodes, idx, percent, corrupt=True)
+    p_val_c, p_test_c, A_c = get_distorted_a(edge_index, nodes, idx, percent, corrupt=True)
     assert p_val_c in [percent-0.05, percent+0.05], 
         ValueError(f"Expected corruption of {percent} in the edge index corresponding to the validation set, got {p_val_c} instead")
     assert p_test_c in [percent-0.05, percent+0.05],
         ValueError(f"Expected corruption of {percent} in the edge index corresponding to the test set, got {p_test_c} instead")
 
-    p_val_z, p_test_z, A_z = get_distorted_A(edge_index, nodes, idx, percent, corrupt=False)
+    p_val_z, p_test_z, A_z = get_distorted_a(edge_index, nodes, idx, percent, corrupt=False)
     assert p_val_z in [percent-0.05, percent+0.05], 
         ValueError(f"Expected blanking out of {percent} in the edge index corresponding to the validation set, got {p_val_z} instead")
     assert p_test_z in [percent-0.05, percent+0.05],
@@ -104,7 +106,7 @@ def distort_A_vt(edge_index, nodes, idx, percent):
   
     return A_c, A_z
 
-def distort_A(edge_index, nodes, idx, step=10):
+def distort_a(edge_index, nodes, idx, step=10):
     """
         Creates a dictionary with distortions of the edge index for the validation and test
         sets in increments of `step`
@@ -150,7 +152,7 @@ def distort_A(edge_index, nodes, idx, step=10):
     A_c, A_z = {}, {}
 
     for i in range(0, 101, 10):
-        A_c[i], A_z[i] = distort_A_vt(edge_index, nodes, idx, i/100.)
+        A_c[i], A_z[i] = distort_a_vt(edge_index, nodes, idx, i/100.)
 
     A_distorted = {
         "A_c": A_c,
