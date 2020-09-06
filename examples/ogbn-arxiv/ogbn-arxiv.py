@@ -1,13 +1,17 @@
 
 import argparse
+
+import os
 import os.path as osp
 
 import numpy as np
 import torch
 from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
 
-from distort_X import distort_x
-from distort_A import distort_a
+import sys
+sys.path.insert(0, osp.join("..", "denoiseRBM"))
+from denoiseRBM.distort_X import distort_x
+from denoiseRBM.distort_A import distort_a
 
 
 def ogbn_arxiv(storage):
@@ -95,6 +99,9 @@ def ogbn_arxiv(storage):
                 }
             }
     """
+    # Ensure that storage directory exists
+    assert osp.exists(storage), ValueError(f"{storage} directory does not exist.")
+
     # Get node feature matrix, labels and edge index
     dataset = PygNodePropPredDataset(name="ogbn-arxiv")
     split_idx = dataset.get_idx_split()
@@ -125,12 +132,20 @@ def ogbn_arxiv(storage):
     }
 
     # Distort the node feature matrix
-    x_distorted = distort_x(x, idx)
-    torch.save(x_distorted, osp.join(storage, "ogbn-arxiv_x_distorted.pt"))
+    x_path = osp.join(storage, "ogbn-arxiv_x_distorted.pt")
+    if not osp.exists(x_path):
+        x_distorted = distort_x(x, idx)
+        torch.save(x_distorted, x_path)
+    else:
+        x_distorted = torch.load(x_path)
 
     # Distort the edge index
-    A_distorted = distort_a(edge_index, nodes, idx, "ogbn-arxiv")
-    torch.save(A_distorted, osp.join(storage, "ogbn-arxiv_A_distorted.pt"))
+    A_path = osp.join(storage, "ogbn-arxiv_A_distorted.pt")
+    if not osp.exists(A_path):
+        A_distorted = distort_a(edge_index, nodes, idx, "ogbn-arxiv")
+        torch.save(A_distorted, A_path)
+    else:
+        A_distorted = torch.load(A_path)
 
     return x, y_true, edge_index, idx, nodes, x_distorted, A_distorted
 
@@ -142,4 +157,10 @@ if __name__ == "__main__":
                         help="Absolute path to store ogbn-arxiv dataset")
     args = parser.parse_args()
     
+    # Create storage directory if it doesn't exist
+    if not osp.exists(args.storage):
+        print(f"{args.storage} does not exist. Creating {args.storage}...", end="")
+        os.mkdir(args.storage)
+    print("Done!")
+
     ogbn_arxiv(args.storage)

@@ -1,5 +1,7 @@
 
 import argparse
+
+import os
 import os.path as osp
 
 import numpy as np
@@ -13,137 +15,19 @@ from torch.distributions import multivariate_normal as mvn
 from torch_geometric.datasets import WikiCS as pyg_WikiCS
 from torch_geometric.utils import accuracy
 
-from distort_X import distort_x
-from distort_A import distort_a
-
-
-def Z(d, sigma):
-    """
-        Returns a d-dimensional vector drawn from \mathcal{N}(0,\sigma^{2}I_{d})
-
-        Args:
-            - d (int): Dimensionality
-            - sigma (float): Standard deviation
-
-        Returns:
-            d-dimensional vector
-    """
-    return mvn.MultivariateNormal(torch.zeros(d), torch.diag(torch.ones(d) * sigma**2))
-
-
-class WikiCS_DNN(torch.nn.Module):
-    def __init__(self, nn, in_channels, hidden_channels, out_channels, device, mathcal_Z=None, dropout=0.5):
-        """
-            DNN pipeline for WikiCS
-
-            Args:
-                - nn: Neural network layer
-                - in_channels (int): Number of input units
-                - hidden_channels (int): Number of units in each hidden layer
-                - out_channels (int): Number of output units
-                - device: torch device
-                - mathcal_Z: AWGN
-                - dropout (float): Dropout probability
-
-            Returns:
-                - z: List of representations learnt by each of the NN layers
-                - hat_Y: Predicted node labels
-                - s: List of representations learnt by each of the non-linearities
-        """
-        super(DNN, self).__init__()
-
-        self.NN_1 = nn(in_channels, hidden_channels)
-        self.NN_2 = nn(hidden_channels, hidden_channels)
-        self.NN_3 = nn(hidden_channels, out_channels)
-
-        self.BN_1 = torch.nn.BatchNorm1d(hidden_channels)
-        self.BN_2 = torch.nn.BatchNorm1d(hidden_channels)
-
-        self.device = device
-        self.mathcal_Z = mathcal_Z
-        self.dropout = dropout
-
-    def reset_parameters(self):
-        self.NN_1.reset_parameters()
-        self.NN_2.reset_parameters()
-        self.NN_3.reset_parameters()
-
-        self.BN_1.reset_parameters()
-        self.BN_2.reset_parameters()
-
-    def forward(self, x, emb=None, layer=0):
-        z, s = [], []
-
-        z_0 = x
-        
-        # f_1
-        z_1 = emb if layer == 1 else self.NN_1(z_0)
-        z.append(z_1.detach())
-        z_1 = self.BN_1(z_1)
-        S_1 = F.relu(z_1)
-        s.append(S_1.detach())
-
-        if self.mathcal_Z is None: # dropout
-            T_1 = F.dropout(S_1, p=self.dropout, training=self.training)
-        else: # AWGN channel
-            n_1 = torch.zeros(S_1.size(0))
-            mathcal_Z_1 = self.mathcal_Z.sample(n_1.size()).to(self.device)
-            T_1 = S_1 + mathcal_Z_1
-        
-        # f_2
-        z_2 = emb if layer == 2 else self.NN_2(T_1)
-        z.append(z_2.detach())
-        z_2 = self.BN_2(z_2)
-        S_2 = F.relu(z_2)
-        s.append(S_2.detach())
-        
-        if self.mathcal_Z is None: # dropout
-            T_2 = F.dropout(S_2, p=self.dropout, training=self.training)
-        else: # AWGN channel
-            n_2 = torch.zeros(S_2.size(0))
-            mathcal_Z_2 = self.mathcal_Z.sample(n_2.size()).to(self.device)
-            T_2 = S_2 + mathcal_Z_2
-
-        # f_3
-        z_3 = emb if layer == 3 else self.NN_3(T_2)
-        z.append(z_3.detach())
-        hat_Y = torch.log_softmax(z_3, dim=-1)
-
-        return z, hat_Y, s
-
-
-def WikiCS_train(model, x, y_true, train_idx, optimizer):
-    """
-        One step of optimization for WikiCS_DNN
-
-        Args:
-            - model: WikiCS_DNN model
-            - x (num_nodes, num_node_features): Input
-            - y_true (num_nodes): True node labels
-            - train_idx: Training node index
-            - optimizer: Optimizer
-
-        Returns:
-            - Training loss
-    """
-    model.train()
-    
-    optimizer.zero_grad()
-    _, out, _ = model(x[train_idx])
-    loss = F.nll_loss(out, y_true[train_idx])
-    loss.backward()
-    optimizer.step()
-
-    return loss.item()
+import sys
+sys.path.insert(0, osp.join("..", "denoiseRBM"))
+from denoiseRBM.distort_X import distort_x
+from denoiseRBM.distort_A import distort_a
 
 
 @torch.no_grad()
-def WikiCS_test(model, x, y_true, idx, emb=None, layer=0):
+def test(model, x, y_true, idx, emb=None, layer=0):
     """
-        Inference module for WikiCS_DNN
+        Inference module for DNN
 
         Args:
-            - model: WikiCS_DNN model
+            - model: DNN model
             - x (num_nodes, num_node_features): Input
             - y_true (num_nodes): True node labels
             - idx: [train_idx, val_idx, test_idx]
@@ -175,19 +59,18 @@ def WikiCS_test(model, x, y_true, idx, emb=None, layer=0):
     return acc
 
 
-def WikiCS(storage, split, MI=False):
+def WikiCS(storage, split):
     """
         WikiCS citation graph (https://arxiv.org/pdf/2007.02901.pdf) denoising
 
         Args:
             - storage: Absolute path to store WikiCS dataset
             - split: Which of the 20 splits to use?
-            - MI: Estimation of mutual information
-                    Default: False
 
         Returns:
             - x (num_nodes, num_node_features): Node feature matrix
             - y_true (num_nodes): True node label
+            - C (int): Number of classes
             - edge_index (2, num_edges): Edge index
             - idx = {
                 "train_idx": Boolean list indicating whether or not a node is 
@@ -263,12 +146,19 @@ def WikiCS(storage, split, MI=False):
                 }
             }
     """
+    # Ensure that storage directory exists
+    assert osp.exists(storage), ValueError(f"{storage} directory does not exist.")
+
+    # Ensure split between 0 and 20
+    assert 0 <= split <= 20, ValueError(f"Split expected to be in [0,20], got {split} instead.")
+
     # Get node feature matrix, labels and edge index
     dataset = pyg_WikiCS(storage)
     data = dataset[0]
     x = data.x
     y_true = data.y
     edge_index = data.edge_index
+    C = dataset.num_classes
 
     # Get indices corresponding to train, validation and test splits
     train_idx = data.train_mask[:, split]
@@ -312,7 +202,7 @@ def WikiCS(storage, split, MI=False):
     else:
         A_distorted = torch.load(A_path)
 
-    return x, y_true, edge_index, idx, nodes, x_distorted, A_distorted
+    return x, y_true, C, edge_index, idx, nodes, x_distorted, A_distorted
 
 
 if __name__ == "__main__":
@@ -323,4 +213,10 @@ if __name__ == "__main__":
     parser.add_argument("--split", default=0, help="Which of the 20 splits to use?")
     args = parser.parse_args()
     
+    # Create storage directory if it doesn't exist
+    if not osp.exists(args.storage):
+        print(f"{args.storage} does not exist. Creating {args.storage}...", end="")
+        os.mkdir(args.storage)
+    print("Done!")
+
     WikiCS(args.storage, args.split)
