@@ -3,46 +3,52 @@ from tqdm import tqdm
 import numpy as np
 import torch
 
-def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
+def get_distorted_a(edge_index, nodes, idx, prob, timed=True, corrupt=True):
     """
         Random distortion of the edge index either through corruption or through blanking out
         - Corruption: Dataset specific corruption of edges
         - Blanking out: Discard edges
 
-        Args:
-            - edge_index (2, num_edges): edge index
-            - nodes (list): [train_nodes, val_nodes, test_nodes]
-            - idx (list): [train_idx, val_idx, test_idx]
-            - prob (float): What fraction of the entries in the corresponding edge index must 
-                            be distorted
-            - dataset (str): If "ogbn-arxiv":
-                                - If source node is in the validation set, 
-                                  then its respective destination node is a random node from 
-                                  either the training or the validation sets.
-                                - If source node is in the test set,
-                                  then its respective destination node is a random node from
-                                  the training, validation or the test sets.
-                             Else:
-                                - If source node is in the validation or test sets,
-                                  then its respective destination node is a random node.
-            - corrupt (bool): Whether to distort edge index through corruption or blanking out
-                                Default value: True (corruption)
+            Parameters:
+                edge_index : torch.tensor of shape (2, num_edges)
+                    edge index
+                nodes : list 
+                    [train_nodes, val_nodes, test_nodes]
+                idx : list
+                    [train_idx, val_idx, test_idx]
+                prob : float
+                    What fraction of the entries in the corresponding edge index must be distorted
+                timed : bool, optional
+                    If True:
+                        - If source node is in the validation set, 
+                            then its respective destination node is a random node from 
+                            either the training or the validation sets.
+                        - If source node is in the test set,
+                            then its respective destination node is a random node from
+                            the training, validation or the test sets.
+                    Else:
+                        - If source node is in the validation or test sets,
+                            then its respective destination node is a random node.
+                        Default value: True
+                corrupt : bool, optional
+                    Whether to distort edge index through corruption or blanking out
+                        Default value: True (corruption)
 
-        Returns:
-            - Percentage of distortion in the validation set
-            - Percentage of distortion in the test set
-            - Distorted edge index
+            Returns:
+                Percentage of distortion in the validation set
+                Percentage of distortion in the test set
+                Distorted edge index
         
     """
     assert 0 <= prob <= 1, ValueError(f"Expected input in range [0,1], got {prob} instead.")
 
-    train_nodes = nodes["train_nodes"]
-    val_nodes = nodes["val_nodes"]
-    test_nodes = nodes["test_nodes"]
+    train_nodes = nodes["train"]
+    val_nodes = nodes["val"]
+    test_nodes = nodes["test"]
 
-    train_idx = idx["train_idx"]
-    val_idx = idx["val_idx"]
-    test_idx = idx["test_idx"]
+    train_idx = idx["train"]
+    val_idx = idx["val"]
+    test_idx = idx["test"]
 
     distorted_edge_index = []
     val_count = 1e-9
@@ -58,11 +64,13 @@ def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
             if np.random.rand() < prob:
                 val_changed += 1
                 if corrupt:
-                    if dataset == "ogbn-arxiv":
+                    if timed:
                         dest = np.random.choice(train_idx.numpy()) 
                     else: 
                         dest = np.random.choice(np.delete(np.hstack((train_nodes, 
-                                val_nodes, test_nodes)), edge[1]))
+                                                                    val_nodes, 
+                                                                    test_nodes)), 
+                                                            edge[1]))
                     new_edge = torch.tensor([edge[0], dest])
                     distorted_edge_index.append(new_edge)
             else:
@@ -72,11 +80,14 @@ def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
             if np.random.rand() < prob:
                 test_changed += 1
                 if corrupt:
-                    if dataset == "ogbn-arxiv":
-                        dest = np.random.choice(np.hstack((train_idx.numpy(), val_idx.numpy()))) 
+                    if timed:
+                        dest = np.random.choice(np.hstack((train_idx.numpy(), 
+                                                            val_idx.numpy()))) 
                     else: 
                         dest = np.random.choice(np.delete(np.hstack((train_nodes, 
-                                val_nodes, test_nodes)), edge[1]))
+                                                                    val_nodes, 
+                                                                    test_nodes)), 
+                                                            edge[1]))
                     new_edge = torch.tensor([edge[0], dest])
                     distorted_edge_index.append(new_edge)
             else:
@@ -89,36 +100,48 @@ def get_distorted_a(edge_index, nodes, idx, prob, dataset, corrupt=True):
     return float(val_changed/val_count), float(test_changed/test_count), torch.stack(distorted_edge_index).t()
 
 
-def distort_a_vt(edge_index, nodes, idx, percent, dataset):
+def distort_a_vt(edge_index, nodes, idx, percent, timed=True):
     """
         Distorts the edge_index corresponding to the validation and the test sets
 
-        Args:
-            - edge_index (2, num_edges): edge index
-            - nodes (list): [train_nodes, val_nodes, test_nodes]
-            - idx (list): [train_idx, val_idx, test_idx]
-            - percent (float): What fraction of the edge indices must be distorted
-            - dataset (str): If "ogbn-arxiv":
-                                - If source node is in the validation set, 
-                                  then its respective destination node is a random node from 
-                                  either the training or the validation sets.
-                                - If source node is in the test set,
-                                  then its respective destination node is a random node from
-                                  the training, validation or the test sets.
-                             Else:
-                                - If source node is in the validation or test sets,
-                                  then its respective destination node is a random node.
+            Arguments:
+                edge_index : torch.tensor of shape (2, num_edges)
+                    edge index
+                nodes : list
+                    [train_nodes, val_nodes, test_nodes]
+                idx : list
+                    [train_idx, val_idx, test_idx]
+                percent : float
+                    What fraction of the edge indices must be distorted
+                timed : bool, optional
+                    If True:
+                        - If source node is in the validation set, 
+                            then its respective destination node is a random node from 
+                            either the training or the validation sets.
+                        - If source node is in the test set,
+                            then its respective destination node is a random node from
+                            the training, validation or the test sets.
+                    Else:
+                        - If source node is in the validation or test sets,
+                            then its respective destination node is a random node.
+                        Default value: True
 
-        Returns:
+            Returns:
+                A_c : torch.tensor of shape (2, num_edges)
+                    Corrupted edge list
+                A_z : torch.tensor of shape (2, num_edges)
+                    Blanked out edge list
 
     """
-    p_val_c, p_test_c, A_c = get_distorted_a(edge_index, nodes, idx, percent, dataset, corrupt=True)
+    # Corrupt edge list
+    p_val_c, p_test_c, A_c = get_distorted_a(edge_index, nodes, idx, percent, timed, corrupt=True)
     assert percent-0.05 <= p_val_c <= percent+0.05, \
         ValueError(f"Expected corruption of {percent} in the edge index corresponding to the validation set, got {p_val_c} instead")
     assert percent-0.05 <= p_test_c <= percent+0.05, \
         ValueError(f"Expected corruption of {percent} in the edge index corresponding to the test set, got {p_test_c} instead")
 
-    p_val_z, p_test_z, A_z = get_distorted_a(edge_index, nodes, idx, percent, dataset, corrupt=False)
+    # Blanked out edge list
+    p_val_z, p_test_z, A_z = get_distorted_a(edge_index, nodes, idx, percent, timed, corrupt=False)
     assert percent-0.05 <= p_val_z <= percent+0.05, \
         ValueError(f"Expected blanking out of {percent} in the edge index corresponding to the validation set, got {p_val_z} instead")
     assert percent-0.05 <= p_test_z <= percent+0.05, \
@@ -127,65 +150,72 @@ def distort_a_vt(edge_index, nodes, idx, percent, dataset):
     return A_c, A_z
 
 
-def distort_a(edge_index, nodes, idx, dataset, step=10):
+def distort_a(edge_index, nodes, idx, timed=True, step=10):
     """
         Creates a dictionary with distortions of the edge index for the validation and test
         sets in increments of `step`
 
-        Args:
-            - edge_index (2, num_edges): Edge index
-            - nodes (list): [train_nodes, val_nodes, test_nodes]
-            - idx (list): [train_idx, val_idx, test_idx]
-            - dataset (str): If "ogbn-arxiv":
-                                - If source node is in the validation set, 
-                                  then its respective destination node is a random node from 
-                                  either the training or the validation sets.
-                                - If source node is in the test set,
-                                  then its respective destination node is a random node from
-                                  the training, validation or the test sets.
-                             Else:
-                                - If source node is in the validation or test sets,
-                                  then its respective destination node is a random node.
-            - step (int): Step size for the increments
+            Arguments:
+                edge_index : torch.tensor of shape (2, num_edges)
+                    Edge index
+                nodes : list
+                    [train_nodes, val_nodes, test_nodes]
+                idx : list
+                    [train_idx, val_idx, test_idx]
+                timed : bool, optional
+                    If True:
+                        - If source node is in the validation set, 
+                            then its respective destination node is a random node from 
+                            either the training or the validation sets.
+                        - If source node is in the test set,
+                            then its respective destination node is a random node from
+                            the training, validation or the test sets.
+                    Else:
+                        - If source node is in the validation or test sets,
+                            then its respective destination node is a random node.
+                        Default value: True
+                step : int, optional
+                    Step size for the increments of distortion
+                        Default: 10
 
-        Returns:
-            - A_distorted = {
-                "A_c": {
-                    0: Concatenation of edges originating from the train nodes, 
-                       0% corrupted (original) edges originating from the validation nodes, 
-                       0% corrupted (original) edges originating from the test nodes,
-                    0+step: Concatenation of edges originating from the train nodes, 
-                       (0+step)% corrupted (original) edges originating from the validation nodes, 
-                       (0+step)% corrupted (original) edges originating from the test nodes,
-                    .
-                    .
-                    .
-                    100: Concatenation of edges originating from the train nodes, 
-                         100% corrupted edges originating from the validation nodes, 
-                         100% corrupted edges originating from the test nodes
+            Returns:
+                A_distorted = {
+                    "A_c": {
+                        0: Concatenation of edges originating from the train nodes, 
+                            0% corrupted (original) edges originating from the validation nodes, 
+                            0% corrupted (original) edges originating from the test nodes,
+                        0+step: Concatenation of edges originating from the train nodes, 
+                            (0+step)% corrupted (original) edges originating from the validation nodes, 
+                            (0+step)% corrupted (original) edges originating from the test nodes,
+                        .
+                        .
+                        .
+                        100: Concatenation of edges originating from the train nodes, 
+                            100% corrupted edges originating from the validation nodes, 
+                            100% corrupted edges originating from the test nodes
+                    },
+                    "A_z": {
+                        0: Concatenation of edges originating from the train nodes, 
+                            0% blanked out (original) edges originating from the validation nodes, 
+                            0% blanked out (original) edges originating from the test nodes,
+                        0+step: Concatenation of edges originating from the train nodes, 
+                            (0+step)% blanked out (original) edges originating from the validation nodes, 
+                            (0+step)% blanked out (original) edges originating from the test nodes,
+                        .
+                        .
+                        .
+                        100: Concatenation of edges originating from the train nodes, 
+                            100% blanked out edges originating from the validation nodes, 
+                            100% blanked out edges originating from the test nodes
+                    }
                 }
-                "A_z": {
-                    0: Concatenation of edges originating from the train nodes, 
-                       0% blanked out (original) edges originating from the validation nodes, 
-                       0% blanked out (original) edges originating from the test nodes,
-                    0+step: Concatenation of edges originating from the train nodes, 
-                       (0+step)% blanked out (original) edges originating from the validation nodes, 
-                       (0+step)% blanked out (original) edges originating from the test nodes,
-                    .
-                    .
-                    .
-                    100: Concatenation of edges originating from the train nodes, 
-                         100% blanked out edges originating from the validation nodes, 
-                         100% blanked out edges originating from the test nodes
-                }
-            }
     """
     A_c, A_z = {}, {}
 
     with tqdm(total=100/step) as pbar:
         pbar.set_description("Distorting edge index")
         for i in range(0, 101, step):
-            A_c[i], A_z[i] = distort_a_vt(edge_index, nodes, idx, i/100., dataset)
+            A_c[i], A_z[i] = distort_a_vt(edge_index, nodes, idx, i/100., timed)
             pbar.update(1)
     pbar.close()
 

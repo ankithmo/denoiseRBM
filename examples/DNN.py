@@ -6,44 +6,41 @@ import torch.nn.functional as F
 from torch.distributions import multivariate_normal as mvn
 
 
-def Z(d, sigma):
-    """
-        Returns a d-dimensional vector drawn from \mathcal{N}(0,\sigma^{2}I_{d})
-
-        Args:
-            - d (int): Dimensionality
-            - sigma (float): Standard deviation
-
-        Returns:
-            d-dimensional vector
-    """
-    return mvn.MultivariateNormal(torch.zeros(d), torch.diag(torch.ones(d) * sigma**2))
-
-
 class DNN(torch.nn.Module):
-    def __init__(self, nn, in_channels, hidden_channels, out_channels, device, mathcal_Z=None, dropout=0.5):
+    def __init__(self, NN, in_channels, hidden_channels, out_channels, device, 
+                    mathcal_Z=None, dropout=0.5):
         """
             DNN pipeline
 
-            Args:
-                - nn: Neural network layer
-                - in_channels (int): Number of input units
-                - hidden_channels (int): Number of units in each hidden layer
-                - out_channels (int): Number of output units
-                - device: torch device
-                - mathcal_Z: AWGN
-                - dropout (float): Dropout probability
+                Arguments:
+                    NN: 
+                        Neural network layer
+                    in_channels : int
+                        Number of input units
+                    hidden_channels : int
+                        Number of units in each hidden layer
+                    out_channels : int
+                        Number of output units
+                    device : torch.device
+                        torch device
+                    mathcal_Z: torch.distributions.multivariate_normal
+                        AWGN
+                    dropout : float
+                        Dropout probability
 
-            Returns:
-                - z: List of representations learnt by each of the NN layers
-                - hat_Y: Predicted node labels
-                - s: List of representations learnt by each of the non-linearities
+                Returns:
+                    z: list
+                        List of representations learnt by each of the NN layers
+                    hat_Y: torch.tensor of shape (num_nodes)
+                        Predicted node labels
+                    s: list
+                        List of representations learnt by each of the non-linearities
         """
         super(DNN, self).__init__()
 
-        self.NN_1 = nn(in_channels, hidden_channels)
-        self.NN_2 = nn(hidden_channels, hidden_channels)
-        self.NN_3 = nn(hidden_channels, out_channels)
+        self.NN_1 = NN(in_channels, hidden_channels)
+        self.NN_2 = NN(hidden_channels, hidden_channels)
+        self.NN_3 = NN(hidden_channels, out_channels)
 
         self.BN_1 = torch.nn.BatchNorm1d(hidden_channels)
         self.BN_2 = torch.nn.BatchNorm1d(hidden_channels)
@@ -61,6 +58,20 @@ class DNN(torch.nn.Module):
         self.BN_2.reset_parameters()
 
     def forward(self, x, emb=None, layer=0):
+        """
+            Forward module
+
+                Arguments:
+                    x : torch.tensor of shape (num_nodes, num_node_features)
+                        node feature matrix
+                    emb: 
+                        - if layer == 1: torch.tensor of shape (num_nodes, in_channels)
+                        - if layer == 2: torch.tensor of shape (num_nodes, hidden_channels)
+                        - if layer == 3: torch.tensor of shape (num_nodes, out_channels)
+                            layer's representation
+                    layer : int
+                        Default value = 0
+        """
         z, s = [], []
 
         z_0 = x
@@ -101,25 +112,33 @@ class DNN(torch.nn.Module):
         return z, hat_Y, s
 
 
-def train(model, x, y_true, train_idx, optimizer):
+def train(model, optimizer, criterion, x, y_true, train_idx):
     """
         One step of optimization for DNN
 
-        Args:
-            - model: DNN model
-            - x (num_nodes, num_node_features): Input
-            - y_true (num_nodes): True node labels
-            - train_idx: Training node index
-            - optimizer: Optimizer
-
-        Returns:
-            - Training loss
+            Arguments:
+                model : DNN
+                    DNN model
+                optimizer: Optimizer
+                    Optimization function
+                criterion: 
+                    Loss function
+                x : torch.tensor of shape (num_nodes, num_node_features)
+                    Node feature matrix
+                y_true : torch.tensor of shape (num_nodes)
+                    True node labels
+                train_idx : torch.tensor of shape (num_nodes)
+                    Training node index
+                
+            Returns:
+                loss : int
+                    Training loss
     """
     model.train()
     
     optimizer.zero_grad()
     _, out, _ = model(x[train_idx])
-    loss = F.nll_loss(out, y_true[train_idx])
+    loss = criterion(out, y_true.squeeze(1)[train_idx])
     loss.backward()
     optimizer.step()
 
